@@ -3,592 +3,479 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Image → PDF Converter</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<title>ImgPDF</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
-
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  font-family: 'Nunito', sans-serif;
-  background: #f0f2f5;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 2rem 1rem 4rem;
+*{ margin:0; padding:0; box-sizing:border-box; }
+body{
+  font-family:'Segoe UI',sans-serif;
+  background:#020617;
+  color:#e2e8f0;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  min-height:100vh;
+  padding:15px;
 }
-
-h1 {
-  font-size: 1.6rem;
-  font-weight: 800;
-  color: #1a1a2e;
-  margin-bottom: 1.5rem;
-  letter-spacing: -0.3px;
+.container{
+  width:100%;
+  max-width:600px;
+  padding:50px;
+  background:#0f172a;
+  border-radius:30px;
+  border:1px solid #1e293b;
+  text-align:center;
+  box-shadow:0 0 40px rgba(59,130,246,0.15);
 }
-
-.card {
-  background: #fff;
-  border-radius: 18px;
-  box-shadow: 0 2px 16px rgba(0,0,0,0.08);
-  width: 100%;
-  max-width: 560px;
-  overflow: hidden;
-  animation: fadeUp 0.4s ease both;
+@media(max-width:500px){
+  body{ align-items:flex-start; padding-top:40px; }
+  .container{ border-radius:14px; padding:20px; }
 }
-
-.card-header {
-  padding: 1.1rem 1.4rem 0.9rem;
-  border-bottom: 1px solid #f0f0f0;
-  font-size: 1rem;
-  font-weight: 700;
-  color: #1a1a2e;
+h1{ font-size:22px; }
+.sub{ font-size:12px; color:#64748b; margin:10px 0 20px; }
+.drop{
+  border:2px dashed #334155;
+  border-radius:24px;
+  padding:  45px;
+  cursor:pointer;
+  transition:0.1s;
+  font-size:14px;
+  display:block;
 }
-.upload-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.8rem;
+.drop:hover{ border-color:#3b82f6; }
+.controls{
+  margin-top:15px;
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  flex-wrap:wrap;
 }
-.subject-input {
-  width: 230px;
-  max-width: 60%;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 0.4rem 0.6rem;
-  font-family: 'Nunito', sans-serif;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #1a1a2e;
+button{
+  background:#1e293b;
+  border:none;
+  padding:10px 14px;
+  border-radius:10px;
+  color:#e2e8f0;
+  cursor:pointer;
+  font-size:13px;
+  min-width:45px;
+  transition:background 0.2s;
 }
-.subject-input:focus {
-  outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+button.active{ background:#3b82f6; }
+#orientBtn{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
 }
-
-.card-body { padding: 1.2rem 1.4rem; }
-
-/* Upload zone */
-.upload-zone {
-  border: 2px dashed #d0d5dd;
-  border-radius: 12px;
-  padding: 1.6rem 1rem;
-  text-align: center;
-  cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
-  background: #fafafa;
+.page-icon{
+  position:relative;
+  width:13px;
+  height:17px;
+  border:2px solid currentColor;
+  border-radius:2px;
+  flex-shrink:0;
+  transition:width 0.25s,height 0.25s;
 }
-.upload-zone:hover, .upload-zone.drag-over {
-  border-color: #2563eb;
-  background: #eff6ff;
+.page-icon::after{
+  content:'';
+  position:absolute;
+  top:-1px; right:-1px;
+  width:4px; height:4px;
+  border-left:2px solid currentColor;
+  border-bottom:2px solid currentColor;
+  background:#1e293b;
 }
-.upload-zone input { display: none; }
-
-.upload-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  background: #fff;
-  border: 1.5px solid #d0d5dd;
-  color: #1a1a2e;
-  padding: 0.5rem 1.4rem;
-  border-radius: 9px;
-  font-family: 'Nunito', sans-serif;
-  font-size: 0.9rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: box-shadow 0.18s, border-color 0.18s;
-  margin-bottom: 0.75rem;
+#orientBtn.landscape .page-icon{ width:17px; height:13px; }
+#orientBtn.landscape .page-icon::after{
+  top:auto; right:auto;
+  bottom:-1px; left:-1px;
+  border-left:none; border-bottom:none;
+  border-right:2px solid currentColor;
+  border-top:2px solid currentColor;
 }
-.upload-btn:hover { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
-
-.upload-hint { color: #555; font-size: 0.88rem; font-weight: 500; }
-.upload-hint-small { color: #9ca3af; font-size: 0.78rem; margin-top: 0.2rem; }
-
-/* Thumbnail grid */
-.thumb-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.65rem;
-  margin-top: 1rem;
+.convert{
+  margin-top:20px;
+  width:100%;
+  padding:12px;
+  background:linear-gradient(135deg,#3b82f6,#06b6d4);
+  font-size:15px;
+  border-radius:10px;
 }
-
-.thumb-cell {
-  position: relative;
-  aspect-ratio: 1;
-  border-radius: 10px;
-  overflow: hidden;
-  background: #f3f4f6;
-  border: 1.5px solid #e5e7eb;
-  animation: popIn 0.22s ease both;
+.grid{ display:grid; gap:8px; margin-top:15px; }
+.cols-1{ grid-template-columns:1fr }
+.cols-2{ grid-template-columns:repeat(2,1fr) }
+.cols-4{ grid-template-columns:repeat(2,1fr) }
+@media(min-width:600px){
+  .cols-4{ grid-template-columns:repeat(4,1fr) }
 }
-.thumb-cell img { width:100%; height:100%; object-fit:cover; display:block; }
-.thumb-cell .rx {
-  position: absolute; top: 4px; right: 4px;
-  background: #ef4444; color: #fff;
-  border: none; border-radius: 50%;
-  width: 20px; height: 20px; font-size: 11px;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  opacity: 0; transition: opacity 0.16s;
-  font-weight: 800; line-height:1;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+.img-wrap{
+  position:relative;
+  display:inline-block;
+  width:100%;
 }
-.thumb-cell:hover .rx { opacity: 1; }
-
-.thumb-empty {
-  aspect-ratio: 1; border-radius: 10px;
-  background: #f9fafb; border: 1.5px dashed #e5e7eb;
-}
-
-.add-more-cell {
-  aspect-ratio: 1; border-radius: 10px;
-  border: 1.5px dashed #d1d5db;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  cursor: pointer; color: #9ca3af;
-  font-size: 0.72rem; font-weight: 700;
-  gap: 0.25rem;
-  transition: border-color 0.18s, color 0.18s;
-}
-.add-more-cell:hover { border-color: #2563eb; color: #2563eb; }
-.add-more-cell .plus { font-size: 1.4rem; line-height: 1; }
-
-/* Settings */
-.settings-row {
-  display: flex; flex-wrap: wrap; gap: 0.45rem;
-  margin-top: 1rem;
-}
-.opt-label {
-  font-size: 0.7rem; color: #9ca3af;
-  text-transform: uppercase; letter-spacing: 0.06em;
-  width: 100%; font-weight: 700; margin-top: 0.3rem;
-}
-.btn-tog {
-  background: #f3f4f6; border: 1.5px solid #e5e7eb;
-  color: #374151; padding: 0.35rem 0.85rem;
-  border-radius: 8px; font-family: 'Nunito',sans-serif;
-  font-size: 0.8rem; font-weight: 700; cursor: pointer;
-  transition: all 0.15s;
-}
-.btn-tog:hover { border-color: #2563eb; color: #2563eb; }
-.btn-tog.active { background: #2563eb; border-color: #2563eb; color: #fff; }
-
-/* Convert button */
-.convert-btn {
-  width: 100%; padding: 0.88rem;
-  background: #2563eb; color: #fff; border: none;
-  border-radius: 11px;
-  font-family: 'Nunito',sans-serif; font-size: 0.97rem; font-weight: 800;
-  cursor: pointer; margin-top: 1rem;
-  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
-  transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
-  box-shadow: 0 2px 12px rgba(37,99,235,0.25);
-}
-.convert-btn:hover:not(:disabled) { background:#1d4ed8; transform:translateY(-1px); box-shadow:0 4px 20px rgba(37,99,235,0.35); }
-.convert-btn:active:not(:disabled) { transform:translateY(0); }
-.convert-btn:disabled { background:#93c5fd; cursor:not-allowed; box-shadow:none; }
-
-/* Progress */
-.progress-wrap { margin-top:0.8rem; display:none; }
-.progress-wrap.show { display:block; }
-.progress-bg { height:5px; background:#e5e7eb; border-radius:3px; overflow:hidden; }
-.progress-fill { height:100%; background:linear-gradient(90deg,#2563eb,#60a5fa); border-radius:3px; width:0%; transition:width 0.3s; }
-.progress-lbl { font-size:0.76rem; color:#6b7280; margin-top:0.35rem; text-align:center; }
-
-/* Result card */
-.result-card {
-  background:#fff; border-radius:18px;
-  box-shadow:0 2px 16px rgba(0,0,0,0.08);
-  width:100%; max-width:560px;
-  margin-top:1rem;
-  display:none;
-  animation:fadeUp 0.4s ease both;
-}
-.result-card.show { display:block; }
-
-.pdf-row {
-  display:flex; align-items:center; gap:1rem;
-  padding:0.8rem 0 1.2rem;
-}
-.pdf-icon { position:relative; flex-shrink:0; width:52px; }
-.pdf-icon svg { width:52px; height:auto; }
-.pdf-check {
-  position:absolute; bottom:-4px; right:-4px;
-  background:#16a34a; border-radius:50%;
+.img-wrap img{ width:100%; height:90px; object-fit:cover; border-radius:8px; display:block; }
+.img-wrap .del{
+  position:absolute;
+  top:4px; right:4px;
   width:20px; height:20px;
-  display:flex; align-items:center; justify-content:center;
-  border:2px solid #fff;
+  background:rgba(220,38,38,0.85);
+  border:none;
+  border-radius:50%;
+  color:#fff;
+  font-size:13px;
+  line-height:20px;
+  text-align:center;
+  cursor:pointer;
+  padding:0;
+  min-width:unset;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  opacity:0;
+  transition:opacity 0.2s;
 }
-.pdf-check svg { width:11px; height:11px; }
-.pdf-meta-name { font-weight:800; font-size:1rem; color:#1a1a2e; }
-.pdf-meta-sub { font-size:0.82rem; color:#6b7280; margin-top:0.15rem; font-weight:500; }
+.img-wrap:hover .del{ opacity:1; }
 
-.action-row { display:flex; gap:0.7rem; }
-
-.btn-save {
-  flex:1; display:flex; align-items:center; justify-content:center; gap:0.45rem;
-  padding:0.75rem; background:#e5e7eb; color:#1a1a2e; border:none;
-  border-radius:10px; font-family:'Nunito',sans-serif; font-size:0.88rem; font-weight:700;
-  cursor:pointer; transition:background 0.18s;
+/* Auto-rotate badge */
+.img-wrap .rotate-badge{
+  position:absolute;
+  bottom:4px; left:4px;
+  background:rgba(6,182,212,0.85);
+  color:#fff;
+  font-size:10px;
+  padding:2px 5px;
+  border-radius:5px;
+  pointer-events:none;
+  opacity:0;
+  transition:opacity 0.2s;
 }
-.btn-save:hover { background:#d1d5db; }
+.img-wrap:hover .rotate-badge{ opacity:1; }
 
-.btn-wa {
-  flex:1; display:flex; align-items:center; justify-content:center; gap:0.45rem;
-  padding:0.75rem; background:#16a34a; color:#fff; border:none;
-  border-radius:10px; font-family:'Nunito',sans-serif; font-size:0.88rem; font-weight:700;
-  cursor:pointer; transition:background 0.18s;
+/* Progress bar */
+#progressWrap{
+  margin-top:12px;
+  display:none;
+  background:#1e293b;
+  border-radius:8px;
+  height:8px;
+  overflow:hidden;
 }
-.btn-wa:hover { background:#15803d; }
-
-.result-foot { text-align:center; margin-top:0.8rem; font-size:0.78rem; color:#9ca3af; }
-
-/* Toast */
-.toast {
-  position:fixed; bottom:1.5rem; left:50%;
-  transform:translateX(-50%) translateY(80px);
-  background:#1a1a2e; color:#fff;
-  padding:0.6rem 1.2rem; border-radius:9px;
-  font-size:0.85rem; font-weight:600;
-  transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
-  z-index:9999; white-space:nowrap;
-}
-.toast.show { transform:translateX(-50%) translateY(0); }
-
-@keyframes fadeUp { from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)} }
-@keyframes popIn  { from{opacity:0;transform:scale(0.82)}to{opacity:1;transform:scale(1)} }
-
-@media(max-width:400px){
-  .thumb-grid { grid-template-columns:repeat(3,1fr); }
+#progressBar{
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg,#3b82f6,#06b6d4);
+  border-radius:8px;
+  transition:width 0.2s;
 }
 </style>
 </head>
 <body>
-
-<h1>Image → PDF Converter</h1>
-
-<!-- Upload card -->
-<div class="card">
-  <div class="card-header upload-header">
-    <span>Images</span>
-    <input id="subjectName" class="subject-input" type="text" placeholder="Enter subject name">
-  </div>
-  <div class="card-body">
-
-    <div class="upload-zone" id="dz">
-      <input type="file" id="fi" accept="image/*" multiple>
-      <button class="upload-btn" id="ubtn">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        Upload
-      </button>
-      <div class="upload-hint">Choose images or drag &amp; drop it here.</div>
-      <div class="upload-hint-small">JPG, JPEG, PNG and WEBP. Max 20 MB.</div>
-    </div>
-
-    <div class="thumb-grid" id="tg" style="display:none"></div>
-
-    <div class="settings-row" id="sr" style="display:none">
-      <span class="opt-label">Auto layout: 1 to 6 images per page</span>
-      <span class="opt-label">Page Orientation (Default: Portrait)</span>
-      <button class="btn-tog active" id="orientPort">📄 Portrait</button>
-      <button class="btn-tog" id="orientLand">🖼 Landscape</button>
-    </div>
-
-    <button class="convert-btn" id="cb" disabled>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-      Convert to PDF
+<div class="container">
+  <h1>snap2doc.vercel.app</h1>
+  <div class="sub">Drag • Drop • Convert • Private</div>
+  <label class="drop">
+    📂 Click or Drag Images Here
+    <input type="file" id="fi" multiple accept="image/*" hidden>
+  </label>
+  <div class="controls">
+    <button class="layout active" data-cols="1">1</button>
+    <button class="layout" data-cols="2">2</button>
+    <button class="layout" data-cols="4">4</button>
+    <button id="fitBtn" class="active" title="Fit image inside slot preserving aspect ratio">Fit: ON</button>
+    <button id="autoRotateBtn" class="active" title="Auto-rotate image to best match slot orientation">⟳ Auto-Rotate: ON</button>
+    <button id="orientBtn" title="Toggle page orientation">
+      <span class="page-icon"></span>
+      <span id="orientLabel">Portrait</span>
     </button>
-
-    <div class="progress-wrap" id="pw">
-      <div class="progress-bg"><div class="progress-fill" id="pf"></div></div>
-      <div class="progress-lbl" id="pl">Preparing…</div>
-    </div>
-
   </div>
+  <div id="grid" class="grid cols-1"></div>
+  <div id="progressWrap"><div id="progressBar"></div></div>
+  <button class="convert" id="convert">⚡ Convert PDF</button>
 </div>
 
-<!-- Result card -->
-<div class="result-card" id="rc">
-  <div class="card-header">PDF Conversion Complete</div>
-  <div class="card-body">
-    <div class="pdf-row">
-      <div class="pdf-icon">
-        <svg viewBox="0 0 52 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M6 0h28l18 18v40a6 6 0 0 1-6 6H6a6 6 0 0 1-6-6V6a6 6 0 0 1 6-6z" fill="#fee2e2"/>
-          <path d="M34 0l18 18H40a6 6 0 0 1-6-6V0z" fill="#fca5a5"/>
-          <text x="26" y="46" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="800" font-size="12" fill="#dc2626">PDF</text>
-        </svg>
-        <div class="pdf-check">
-          <svg viewBox="0 0 12 12" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg>
-        </div>
-      </div>
-      <div>
-        <div class="pdf-meta-name" id="pdfName">converted_images.pdf</div>
-        <div class="pdf-meta-sub" id="pmeta">— pages</div>
-      </div>
-    </div>
-
-    <div class="action-row">
-      <button class="btn-save" id="sb">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Save to Device
-      </button>
-      <button class="btn-wa" id="wb">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
-        Share to WhatsApp ↗
-      </button>
-    </div>
-    <div class="result-foot">PDF created successfully.</div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
-const { jsPDF } = window.jspdf;
-const PDF_FILENAME = 'Thanks for using Jack Site 😘.pdf';
+const fi             = document.getElementById('fi');
+const gridEl         = document.getElementById('grid');
+const fitBtn         = document.getElementById('fitBtn');
+const autoRotateBtn  = document.getElementById('autoRotateBtn');
+const convertBtn     = document.getElementById('convert');
+const orientBtn      = document.getElementById('orientBtn');
+const orientLabel    = document.getElementById('orientLabel');
+const progressWrap   = document.getElementById('progressWrap');
+const progressBar    = document.getElementById('progressBar');
 
-let images = [], landscape = false, lastBlob = null;
+let images      = [];
+let layout      = 1;
+let fit         = true;
+let autoRotate  = true;
+let isLandscape = false;
 
-const dz=document.getElementById('dz'), fi=document.getElementById('fi'),
-  ubtn=document.getElementById('ubtn'), tg=document.getElementById('tg'),
-  sr=document.getElementById('sr'), cb=document.getElementById('cb'),
-  pw=document.getElementById('pw'), pf=document.getElementById('pf'),
-  pl=document.getElementById('pl'), rc=document.getElementById('rc'),
-  subjectName=document.getElementById('subjectName'),
-  pmeta=document.getElementById('pmeta'), pdfName=document.getElementById('pdfName'), sb=document.getElementById('sb'),
-  wb=document.getElementById('wb'),
-  orientLand=document.getElementById('orientLand'),
-  orientPort=document.getElementById('orientPort');
-
-pdfName.textContent = PDF_FILENAME;
-
-ubtn.addEventListener('click',e=>{e.stopPropagation();fi.click();});
-dz.addEventListener('click',()=>fi.click());
-fi.addEventListener('change',()=>{addFiles([...fi.files]);fi.value='';});
-dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
-dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
-dz.addEventListener('drop',e=>{
-  e.preventDefault();dz.classList.remove('drag-over');
-  addFiles([...e.dataTransfer.files].filter(f=>f.type.startsWith('image/')));
+/* ── Layout buttons ── */
+document.querySelectorAll('.layout').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.layout').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    layout = parseInt(btn.dataset.cols);
+    gridEl.className = 'grid cols-' + layout;
+  };
 });
 
-function addFiles(files){
-  const rem=20-images.length;
-  if(rem<=0){toast('Maximum 20 images');return;}
-  files.slice(0,rem).forEach(f=>images.push({file:f,url:URL.createObjectURL(f)}));
-  render();
-}
+/* ── Fit toggle ── */
+fitBtn.onclick = () => {
+  fit = !fit;
+  fitBtn.textContent = 'Fit: ' + (fit ? 'ON' : 'OFF');
+  fitBtn.classList.toggle('active', fit);
+};
 
-function render(){
-  const has=images.length>0;
-  tg.style.display=has?'grid':'none';
-  sr.style.display=has?'flex':'none';
-  cb.disabled=!has;
-  rc.classList.remove('show');
-  tg.innerHTML='';
+/* ── Auto-Rotate toggle ── */
+autoRotateBtn.onclick = () => {
+  autoRotate = !autoRotate;
+  autoRotateBtn.textContent = '⟳ Auto-Rotate: ' + (autoRotate ? 'ON' : 'OFF');
+  autoRotateBtn.classList.toggle('active', autoRotate);
+  render(); // re-render badges
+};
 
-  images.forEach((img,i)=>{
-    const c=document.createElement('div'); c.className='thumb-cell';
-    c.innerHTML=`<img src="${img.url}"><button class="rx" data-i="${i}">✕</button>`;
-    tg.appendChild(c);
-  });
-
-  if(images.length<20){
-    const a=document.createElement('div'); a.className='add-more-cell';
-    a.innerHTML='<span class="plus">+</span><span>Add More</span>';
-    a.addEventListener('click',()=>fi.click()); tg.appendChild(a);
-  }
-
-  const tot=images.length+(images.length<20?1:0);
-  const rem=tot%4; if(rem!==0){
-    for(let k=0;k<4-rem;k++){const e=document.createElement('div');e.className='thumb-empty';tg.appendChild(e);}
-  }
-
-  tg.querySelectorAll('.rx').forEach(b=>{
-    b.addEventListener('click',e=>{
-      e.stopPropagation();
-      const i=parseInt(b.dataset.i);
-      URL.revokeObjectURL(images[i].url); images.splice(i,1); render();
-    });
-  });
-}
-
-// Orientation toggle
-orientLand.addEventListener('click',()=>{
-  landscape=true;
-  orientLand.classList.add('active'); orientPort.classList.remove('active');
-});
-orientPort.addEventListener('click',()=>{
-  landscape=false;
-  orientPort.classList.add('active'); orientLand.classList.remove('active');
-});
-
-/**
- * Grid layouts that work for BOTH landscape and portrait A4.
- * For landscape (297×210): cells are wide — favour more columns.
- * For portrait  (210×297): cells are tall — favour more rows.
- *
- * n = images per page → {cols, rows}
- */
-function getGrid(n, isLandscape){
+/* ── Page orientation toggle ── */
+orientBtn.onclick = () => {
+  isLandscape = !isLandscape;
   if(isLandscape){
-    // Wide page: spread images across columns
-    const m={1:{c:1,r:1},2:{c:2,r:1},3:{c:3,r:1},4:{c:2,r:2},5:{c:3,r:2},6:{c:3,r:2}};
-    return m[n]||{c:3,r:2};
+    orientBtn.classList.add('landscape');
+    orientBtn.style.background = '#3b82f6';
+    orientLabel.textContent = 'Landscape';
   } else {
-    // Tall page: use more rows
-    const m={1:{c:1,r:1},2:{c:1,r:2},3:{c:1,r:3},4:{c:2,r:2},5:{c:2,r:3},6:{c:2,r:3}};
-    return m[n]||{c:2,r:3};
+    orientBtn.classList.remove('landscape');
+    orientBtn.style.background = '';
+    orientLabel.textContent = 'Portrait';
   }
+};
+
+/* ── File input ── */
+fi.onchange = () => handleFiles(fi.files);
+document.querySelector('.drop').addEventListener('dragover', e => e.preventDefault());
+document.querySelector('.drop').addEventListener('drop', e => {
+  e.preventDefault();
+  handleFiles(e.dataTransfer.files);
+});
+
+function handleFiles(files){
+  [...files].forEach(file => {
+    if(!file.type.startsWith('image/')) return;
+    const r = new FileReader();
+    r.onload = e => {
+      getDims(e.target.result).then(d => {
+        images.push({ src: e.target.result, w: d.w, h: d.h });
+        render();
+      });
+    };
+    r.readAsDataURL(file);
+  });
 }
 
-cb.addEventListener('click',async()=>{
-  if(!images.length)return;
-  cb.disabled=true; pw.classList.add('show');
-  pf.style.width='0%'; rc.classList.remove('show');
+/* ── Render preview grid ── */
+function render(){
+  gridEl.innerHTML = '';
+  images.forEach((img, idx) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'img-wrap';
 
-  // Page dimensions in mm
-  const PW = landscape ? 297 : 210;
-  const PH = landscape ? 210 : 297;
-  const or = landscape ? 'l' : 'p';
-  const mg = 8; // margin between images and page edges
-  const MAX_PER_PAGE = 6;
+    const el = document.createElement('img');
+    el.src = img.src;
 
-  const pdf = new jsPDF({orientation: or, unit:'mm', format:'a4'});
+    const del = document.createElement('button');
+    del.className = 'del';
+    del.innerHTML = '&#x2715;';
+    del.title = 'Remove image';
+    del.onclick = e => {
+      e.preventDefault();
+      images.splice(idx, 1);
+      render();
+    };
 
-  // Header content
-  const PROJECT = 'Jack Site — snap2doc';
-  const headerH = 7; // mm reserved for header text
-  const contentStartY = mg + headerH + 2; // push images below header
+    wrap.appendChild(el);
+    wrap.appendChild(del);
 
-  pdf.setFontSize(8);
-  pdf.setTextColor(150,150,150);
+    // Show rotate badge only when auto-rotate is on and image would be rotated
+    if(autoRotate){
+      const slotIsLandscape = getSlotOrientation(idx);
+      const imgIsLandscape  = img.w > img.h;
+      if(slotIsLandscape !== imgIsLandscape){
+        const badge = document.createElement('span');
+        badge.className = 'rotate-badge';
+        badge.textContent = '⟳ rotated';
+        wrap.appendChild(badge);
+      }
+    }
 
-  let pages = 0;
+    gridEl.appendChild(wrap);
+  });
+}
 
-  for(let pageStart=0; pageStart<images.length; pageStart+=MAX_PER_PAGE){
-    const countOnPage = Math.min(MAX_PER_PAGE, images.length - pageStart);
-    const {c:cols, r:rows} = getGrid(countOnPage, landscape);
-    const cw = (PW - mg*(cols+1)) / cols;
-    const chAdj = (PH - contentStartY - mg*(rows+1)) / rows;
+/* ── Helper: is the slot for image at index landscape? ── */
+function getSlotOrientation(imgIdx){
+  // Use A4 proportions to determine slot shape
+  const pw = isLandscape ? 297 : 210;
+  const ph = isLandscape ? 210 : 297;
+  const slots = getSlots(pw, ph);
+  const slotIdx = imgIdx % layout;
+  const slot = slots[Math.min(slotIdx, slots.length - 1)];
+  return slot.w > slot.h;
+}
 
-    if(pages>0) pdf.addPage([PW,PH], or);
-    pages++;
+/* ── Get image dimensions ── */
+function getDims(src){
+  return new Promise(res => {
+    const i = new Image();
+    i.onload = () => res({w: i.width, h: i.height});
+    i.src = src;
+  });
+}
 
-    pdf.setFontSize(8);
-    pdf.setTextColor(150,150,150);
-    pdf.text(PROJECT, PW/2, mg+4, {align:'center'});
+/*
+  ┌──────────────────────────────────────────────────┐
+  │  Slot layout logic                               │
+  │  layout=1  → full page                          │
+  │  layout=2 portrait  → top / bottom stacked      │
+  │  layout=2 landscape → left / right side-by-side │
+  │  layout=4  → 2×2 grid                           │
+  └──────────────────────────────────────────────────┘
+*/
+function getSlots(pw, ph){
+  const M = 8;
+  const G = 6;
 
-    for(let pageIndex=0; pageIndex<countOnPage; pageIndex++){
-      const i = pageStart + pageIndex;
-      pf.style.width=Math.round((i/images.length)*90)+'%';
-      pl.textContent=`Processing ${i+1} of ${images.length}…`;
+  if(layout === 1){
+    return [{ x:M, y:M, w:pw-2*M, h:ph-2*M }];
+  }
 
-      const col = pageIndex % cols;
-      const row = Math.floor(pageIndex / cols);
-      const x = mg + col*(cw+mg);
-      const y = contentStartY + row*(chAdj+mg);
+  if(layout === 2){
+    if(isLandscape){
+      const slotW = (pw - 2*M - G) / 2;
+      return [
+        { x:M,          y:M, w:slotW, h:ph-2*M },
+        { x:M+slotW+G,  y:M, w:slotW, h:ph-2*M }
+      ];
+    } else {
+      const slotH = (ph - 2*M - G) / 2;
+      return [
+        { x:M, y:M,          w:pw-2*M, h:slotH },
+        { x:M, y:M+slotH+G,  w:pw-2*M, h:slotH }
+      ];
+    }
+  }
 
-      const el = await loadImg(images[i].url);
-      const iw = el.naturalWidth, ih = el.naturalHeight;
+  if(layout === 4){
+    const slotW = (pw - 2*M - G) / 2;
+    const slotH = (ph - 2*M - G) / 2;
+    return [
+      { x:M,         y:M,         w:slotW, h:slotH },
+      { x:M+slotW+G, y:M,         w:slotW, h:slotH },
+      { x:M,         y:M+slotH+G, w:slotW, h:slotH },
+      { x:M+slotW+G, y:M+slotH+G, w:slotW, h:slotH }
+    ];
+  }
+  return [];
+}
 
-      // For landscape page orientation: rotate portrait images to landscape
-      // For portrait page: keep images as-is (or optionally rotate landscape images)
-      const needsRotate = landscape && (ih > iw);
+/*
+  ── Auto-Rotate + Fit core logic ──────────────────────────────────
+  When auto-rotate is ON: if an image's orientation (portrait/landscape)
+  doesn't match its slot, we rotate the image 90° on a canvas so it
+  fills the slot much better before embedding into the PDF.
 
-      const cv = document.createElement('canvas');
-      if(needsRotate){
-        cv.width=ih; cv.height=iw;
-        const ctx=cv.getContext('2d');
-        ctx.translate(ih/2, iw/2);
-        ctx.rotate(Math.PI/2);
-        ctx.drawImage(el, -iw/2, -ih/2);
+  When fit is ON: the image (possibly rotated) is scaled to fill the
+  slot while preserving its aspect ratio, then centred in the slot.
+
+  When fit is OFF: the image is stretched to fill the slot entirely.
+*/
+async function prepareImageForSlot(imgSrc, imgW, imgH, slot){
+  const slotIsLandscape = slot.w > slot.h;
+  const imgIsLandscape  = imgW > imgH;
+  const needsRotation   = autoRotate && (slotIsLandscape !== imgIsLandscape);
+
+  return new Promise(res => {
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      let drawW, drawH;
+
+      if(needsRotation){
+        // Rotate 90°: swap dimensions
+        canvas.width  = imgH;
+        canvas.height = imgW;
+        const ctx = canvas.getContext('2d');
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(Math.PI / 2);
+        ctx.drawImage(image, -imgW / 2, -imgH / 2, imgW, imgH);
+        drawW = imgH;
+        drawH = imgW;
       } else {
-        cv.width=iw; cv.height=ih;
-        cv.getContext('2d').drawImage(el,0,0);
+        canvas.width  = imgW;
+        canvas.height = imgH;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(image, 0, 0, imgW, imgH);
+        drawW = imgW;
+        drawH = imgH;
       }
 
-      // Fit inside cell, preserve aspect ratio, centre
-      const srcW = needsRotate ? ih : iw;
-      const srcH = needsRotate ? iw : ih;
-      const asp = srcW / srcH;
-      const cellAsp = cw / chAdj;
-      let dw, dh;
-      if(asp > cellAsp){ dw=cw; dh=cw/asp; }
-      else { dh=chAdj; dw=chAdj*asp; }
-      const dx = x + (cw-dw)/2;
-      const dy = y + (chAdj-dh)/2;
+      res({ dataUrl: canvas.toDataURL('image/jpeg', 0.92), w: drawW, h: drawH });
+    };
+    image.src = imgSrc;
+  });
+}
 
-      pdf.addImage(cv.toDataURL('image/jpeg',0.92),'JPEG',dx,dy,dw,dh);
-      await tick();
+/* ── Convert button ── */
+convertBtn.onclick = async () => {
+  if(images.length === 0){ alert('Add images first'); return; }
+
+  const { jsPDF } = window.jspdf;
+  const orient = isLandscape ? 'landscape' : 'portrait';
+  const pdf = new jsPDF({ orientation: orient, unit: 'mm', format: 'a4' });
+
+  const total = images.length;
+  progressWrap.style.display = 'block';
+  progressBar.style.width = '0%';
+  convertBtn.disabled = true;
+  convertBtn.textContent = 'Processing…';
+
+  for(let i = 0; i < images.length; i += layout){
+    const group = images.slice(i, i + layout);
+    if(i !== 0) pdf.addPage('a4', orient);
+
+    const pw    = pdf.internal.pageSize.getWidth();
+    const ph    = pdf.internal.pageSize.getHeight();
+    const slots = getSlots(pw, ph);
+
+    for(let j = 0; j < group.length; j++){
+      const img  = group[j];
+      const slot = slots[j];
+
+      // Prepare image (rotate if needed)
+      const prepared = await prepareImageForSlot(img.src, img.w, img.h, slot);
+
+      if(fit){
+        // Scale to fit slot preserving aspect ratio, then centre
+        const ratio = Math.min(slot.w / prepared.w, slot.h / prepared.h);
+        const w     = prepared.w * ratio;
+        const h     = prepared.h * ratio;
+        const x     = slot.x + (slot.w - w) / 2;
+        const y     = slot.y + (slot.h - h) / 2;
+        pdf.addImage(prepared.dataUrl, 'JPEG', x, y, w, h);
+      } else {
+        // Stretch to fill the slot entirely
+        pdf.addImage(prepared.dataUrl, 'JPEG', slot.x, slot.y, slot.w, slot.h);
+      }
+
+      // Update progress
+      const done = i + j + 1;
+      progressBar.style.width = Math.round((done / total) * 100) + '%';
     }
   }
 
-  pf.style.width='100%'; pl.textContent='Generating PDF…';
-  await tick();
-
-  lastBlob = pdf.output('blob');
-  const sizeMB = (lastBlob.size/1048576).toFixed(1);
-
-  setTimeout(()=>{
-    pw.classList.remove('show'); cb.disabled=false;
-    pmeta.textContent=`${pages} Page${pages>1?'s':''}, ${sizeMB} MB`;
-    rc.classList.add('show');
-    rc.scrollIntoView({behavior:'smooth',block:'nearest'});
-  },350);
-});
-
-sb.addEventListener('click',()=>{
-  if(!lastBlob)return;
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(lastBlob);
-  a.download=PDF_FILENAME;
-  a.click();
-  toast('✅ PDF saved!');
-});
-
-wb.addEventListener('click', async ()=>{
-  if(!lastBlob) return;
-  const subject = subjectName.value.trim();
-  const waText = subject
-    ? `${subject}\nThanks for using Jack Site 😘`
-    : 'Thanks for using Jack Site 😘';
-  const file = new File([lastBlob], PDF_FILENAME, {type:'application/pdf'});
-
-  // Mobile: try native share sheet (sends actual file)
-  if(navigator.canShare && navigator.canShare({files:[file]})){
-    try {
-      await navigator.share({ files: [file], text: waText });
-      return;
-    } catch(e){
-      if(e.name==='AbortError') return; // user cancelled
-    }
-  }
-
-  // Desktop fallback: download PDF + open WhatsApp with message
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(lastBlob);
-  a.download=PDF_FILENAME;
-  a.click();
-  setTimeout(()=>{
-    window.open('https://wa.me/?text=' + encodeURIComponent(waText),'_blank');
-  }, 800);
-  toast('📥 PDF downloaded — message prefilled in WhatsApp');
-});
-
-function loadImg(url){
-  return new Promise((r,j)=>{const i=new Image();i.onload=()=>r(i);i.onerror=j;i.crossOrigin='anonymous';i.src=url;});
-}
-function tick(){return new Promise(r=>setTimeout(r,0));}
-function toast(msg){
-  const t=document.getElementById('toast');
-  t.textContent=msg;t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),3000);
-}
+  pdf.save('output.pdf');
+  progressWrap.style.display = 'none';
+  convertBtn.disabled = false;
+  convertBtn.textContent = '⚡ Convert PDF';
+};
 </script>
 </body>
 </html>

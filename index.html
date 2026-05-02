@@ -101,12 +101,6 @@ button.active{ background:#3b82f6; }
   border-radius:10px;
 }
 .grid{ display:grid; gap:8px; margin-top:15px; }
-.cols-1{ grid-template-columns:1fr }
-.cols-2{ grid-template-columns:repeat(2,1fr) }
-.cols-4{ grid-template-columns:repeat(2,1fr) }
-@media(min-width:600px){
-  .cols-4{ grid-template-columns:repeat(4,1fr) }
-}
 .img-wrap{
   position:relative;
   display:inline-block;
@@ -179,7 +173,12 @@ button.active{ background:#3b82f6; }
   <div class="controls">
     <button class="layout active" data-cols="1">1</button>
     <button class="layout" data-cols="2">2</button>
+    <button class="layout" data-cols="3">3</button>
     <button class="layout" data-cols="4">4</button>
+    <button class="layout" data-cols="5">5</button>
+    <button class="layout" data-cols="6">6</button>
+    <button class="layout" data-cols="7">7</button>
+    <button class="layout" data-cols="8">8</button>
     <button id="fitBtn" class="active" title="Fit image inside slot preserving aspect ratio">Fit: ON</button>
     <button id="autoRotateBtn" class="active" title="Auto-rotate image to best match slot orientation">⟳ Auto-Rotate: ON</button>
     <button id="orientBtn" title="Toggle page orientation">
@@ -187,7 +186,7 @@ button.active{ background:#3b82f6; }
       <span id="orientLabel">Portrait</span>
     </button>
   </div>
-  <div id="grid" class="grid cols-1"></div>
+  <div id="grid" class="grid"></div>
   <div id="progressWrap"><div id="progressBar"></div></div>
   <button class="convert" id="convert">⚡ Convert PDF</button>
 </div>
@@ -216,7 +215,8 @@ document.querySelectorAll('.layout').forEach(btn => {
     document.querySelectorAll('.layout').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     layout = parseInt(btn.dataset.cols);
-    gridEl.className = 'grid cols-' + layout;
+    updatePreviewColumns();
+    render();
   };
 });
 
@@ -269,6 +269,11 @@ function handleFiles(files){
     };
     r.readAsDataURL(file);
   });
+}
+
+function updatePreviewColumns(){
+  const cols = Math.min(4, Math.ceil(Math.sqrt(layout)));
+  gridEl.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
 }
 
 /* ── Render preview grid ── */
@@ -333,47 +338,55 @@ function getDims(src){
 /*
   ┌──────────────────────────────────────────────────┐
   │  Slot layout logic                               │
-  │  layout=1  → full page                          │
-  │  layout=2 portrait  → top / bottom stacked      │
-  │  layout=2 landscape → left / right side-by-side │
-  │  layout=4  → 2×2 grid                           │
+  │  Supports 1 to 8 images per page                │
+  │  Picks the most balanced rows/columns grid      │
+  │  based on current page orientation ratio        │
   └──────────────────────────────────────────────────┘
 */
 function getSlots(pw, ph){
   const M = 8;
   const G = 6;
+  const count = Math.min(8, Math.max(1, layout));
 
-  if(layout === 1){
+  if(count === 1){
     return [{ x:M, y:M, w:pw-2*M, h:ph-2*M }];
   }
 
-  if(layout === 2){
-    if(isLandscape){
-      const slotW = (pw - 2*M - G) / 2;
-      return [
-        { x:M,          y:M, w:slotW, h:ph-2*M },
-        { x:M+slotW+G,  y:M, w:slotW, h:ph-2*M }
-      ];
-    } else {
-      const slotH = (ph - 2*M - G) / 2;
-      return [
-        { x:M, y:M,          w:pw-2*M, h:slotH },
-        { x:M, y:M+slotH+G,  w:pw-2*M, h:slotH }
-      ];
+  const targetRatio = pw / ph;
+  let best = null;
+
+  for(let cols = 1; cols <= count; cols++){
+    const rows = Math.ceil(count / cols);
+    const gridRatio = cols / rows;
+    const diff = Math.abs(gridRatio - targetRatio);
+
+    if(
+      !best ||
+      diff < best.diff ||
+      (diff === best.diff && rows * cols < best.rows * best.cols)
+    ){
+      best = { rows, cols, diff };
     }
   }
 
-  if(layout === 4){
-    const slotW = (pw - 2*M - G) / 2;
-    const slotH = (ph - 2*M - G) / 2;
-    return [
-      { x:M,         y:M,         w:slotW, h:slotH },
-      { x:M+slotW+G, y:M,         w:slotW, h:slotH },
-      { x:M,         y:M+slotH+G, w:slotW, h:slotH },
-      { x:M+slotW+G, y:M+slotH+G, w:slotW, h:slotH }
-    ];
+  const totalGapX = (best.cols - 1) * G;
+  const totalGapY = (best.rows - 1) * G;
+  const slotW = (pw - 2 * M - totalGapX) / best.cols;
+  const slotH = (ph - 2 * M - totalGapY) / best.rows;
+  const slots = [];
+
+  for(let idx = 0; idx < count; idx++){
+    const row = Math.floor(idx / best.cols);
+    const col = idx % best.cols;
+    slots.push({
+      x: M + col * (slotW + G),
+      y: M + row * (slotH + G),
+      w: slotW,
+      h: slotH
+    });
   }
-  return [];
+
+  return slots;
 }
 
 /*
@@ -476,6 +489,8 @@ convertBtn.onclick = async () => {
   convertBtn.disabled = false;
   convertBtn.textContent = '⚡ Convert PDF';
 };
+
+updatePreviewColumns();
 </script>
 </body>
 </html>

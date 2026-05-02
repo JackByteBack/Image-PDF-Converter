@@ -553,12 +553,16 @@ sb.addEventListener('click',()=>{
 
 wb.addEventListener('click', async ()=>{
   if(!lastBlob) return;
+  const subject = subjectName.value.trim();
+  const waText = subject
+    ? `${subject}\nThanks for using Jack Site 😘`
+    : 'Thanks for using Jack Site 😘';
   const file = new File([lastBlob], PDF_FILENAME, {type:'application/pdf'});
 
   // Mobile: try native share sheet (sends actual file)
   if(navigator.canShare && navigator.canShare({files:[file]})){
     try {
-      await navigator.share({ files: [file] });
+      await navigator.share({ files: [file], text: waText });
       return;
     } catch(e){
       if(e.name==='AbortError') return; // user cancelled
@@ -571,9 +575,9 @@ wb.addEventListener('click', async ()=>{
   a.download=PDF_FILENAME;
   a.click();
   setTimeout(()=>{
-    window.open('https://wa.me/','_blank');
+    window.open('https://wa.me/?text=' + encodeURIComponent(waText),'_blank');
   }, 800);
-  toast('📥 PDF downloaded — attach it in WhatsApp');
+  toast('📥 PDF downloaded — message prefilled in WhatsApp');
 });
 
 function loadImg(url){

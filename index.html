@@ -1,1 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image → PDF Converter</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
 
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Nunito', sans-serif;
+  background: #f0f2f5;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 1rem 4rem;
+}
+
+h1 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #1a1a2e;
+  margin-bottom: 1.5rem;
+  letter-spacing: -0.3px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+  width: 100%;
+  max-width: 560px;
+  overflow: hidden;
+  animation: fadeUp 0.4s ease both;
+}
+
+.card-header {
+  padding: 1.1rem 1.4rem 0.9rem;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.card-body { padding: 1.2rem 1.4rem; }
+
+/* Upload zone */
+.upload-zone {
+  border: 2px dashed #d0d5dd;
+  border-radius: 12px;
+  padding: 1.6rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  background: #fafafa;
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+.upload-zone input { display: none; }
+
+.upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: #fff;
+  border: 1.5px solid #d0d5dd;
+  color: #1a1a2e;
+  padding: 0.5rem 1.4rem;
+  border-radius: 9px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: box-shadow 0.18s, border-color 0.18s;
+  margin-bottom: 0.75rem;
+}
+.upload-btn:hover { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+
+.upload-hint { color: #555; font-size: 0.88rem; font-weight: 500; }
+.upload-hint-small { color: #9ca3af; font-size: 0.78rem; margin-top: 0.2rem; }
+
+/* Thumbnail grid */
+.thumb-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.thumb-cell {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f3f4f6;
+  border: 1.5px solid #e5e7eb;
+  animation: popIn 0.22s ease both;
+}
+.thumb-cell img { width:100%; height:100%; object-fit:cover; display:block; }
+.thumb-cell .rx {
+  position: absolute; top: 4px; right: 4px;
+  background: #ef4444; color: #fff;
+  border: none; border-radius: 50%;
+  width: 20px; height: 20px; font-size: 11px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.16s;
+  font-weight: 800; line-height:1;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.thumb-cell:hover .rx { opacity: 1; }
+
+.thumb-empty {
+  aspect-ratio: 1; border-radius: 10px;
+  background: #f9fafb; border: 1.5px dashed #e5e7eb;
+}
+
+.add-more-cell {
+  aspect-ratio: 1; border-radius: 10px;
+  border: 1.5px dashed #d1d5db;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  cursor: pointer; color: #9ca3af;
+  font-size: 0.72rem; font-weight: 700;
+  gap: 0.25rem;
+  transition: border-color 0.18s, color 0.18s;
+}
+.add-more-cell:hover { border-color: #2563eb; color: #2563eb; }
+.add-more-cell .plus { font-size: 1.4rem; line-height: 1; }
+
+/* Settings */
+.settings-row {
+  display: flex; flex-wrap: wrap; gap: 0.45rem;
+  margin-top: 1rem;
+}
+.opt-label {
+  font-size: 0.7rem; color: #9ca3af;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  width: 100%; font-weight: 700; margin-top: 0.3rem;
+}
+.btn-tog {
+  background: #f3f4f6; border: 1.5px solid #e5e7eb;
+  color: #374151; padding: 0.35rem 0.85rem;
+  border-radius: 8px; font-family: 'Nunito',sans-serif;
+  font-size: 0.8rem; font-weight: 700; cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-tog:hover { border-color: #2563eb; color: #2563eb; }
+.btn-tog.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+
+/* Convert button */
+.convert-btn {
+  width: 100%; padding: 0.88rem;
+  background: #2563eb; color: #fff; border: none;
+  border-radius: 11px;
+  font-family: 'Nunito',sans-serif; font-size: 0.97rem; font-weight: 800;
+  cursor: pointer; margin-top: 1rem;
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+  transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
+  box-shadow: 0 2px 12px rgba(37,99,235,0.25);
+}
+.convert-btn:hover:not(:disabled) { background:#1d4ed8; transform:translateY(-1px); box-shadow:0 4px 20px rgba(37,99,235,0.35); }
+.convert-btn:active:not(:disabled) { transform:translateY(0); }
+.convert-btn:disabled { background:#93c5fd; cursor:not-allowed; box-shadow:none; }
+
+/* Progress */
+.progress-wrap { margin-top:0.8rem; display:none; }
+.progress-wrap.show { display:block; }
+.progress-bg { height:5px; background:#e5e7eb; border-radius:3px; overflow:hidden; }
+.progress-fill { height:100%; background:linear-gradient(90deg,#2563eb,#60a5fa); border-radius:3px; width:0%; transition:width 0.3s; }
+.progress-lbl { font-size:0.76rem; color:#6b7280; margin-top:0.35rem; text-align:center; }
+
+/* Result card */
+.result-card {
+  background:#fff; border-radius:18px;
+  box-shadow:0 2px 16px rgba(0,0,0,0.08);
+  width:100%; max-width:560px;
+  margin-top:1rem;
+  display:none;
+  animation:fadeUp 0.4s ease both;
+}
+.result-card.show { display:block; }
+
+.pdf-row {
+  display:flex; align-items:center; gap:1rem;
+  padding:0.8rem 0 1.2rem;
+}
+.pdf-icon { position:relative; flex-shrink:0; width:52px; }
+.pdf-icon svg { width:52px; height:auto; }
+.pdf-check {
+  position:absolute; bottom:-4px; right:-4px;
+  background:#16a34a; border-radius:50%;
+  width:20px; height:20px;
+  display:flex; align-items:center; justify-content:center;
+  border:2px solid #fff;
+}
+.pdf-check svg { width:11px; height:11px; }
+.pdf-meta-name { font-weight:800; font-size:1rem; color:#1a1a2e; }
+.pdf-meta-sub { font-size:0.82rem; color:#6b7280; margin-top:0.15rem; font-weight:500; }
+
+.action-row { display:flex; gap:0.7rem; }
+
+.btn-save {
+  flex:1; display:flex; align-items:center; justify-content:center; gap:0.45rem;
+  padding:0.75rem; background:#e5e7eb; color:#1a1a2e; border:none;
+  border-radius:10px; font-family:'Nunito',sans-serif; font-size:0.88rem; font-weight:700;
+  cursor:pointer; transition:background 0.18s;
+}
+.btn-save:hover { background:#d1d5db; }
+
+.btn-wa {
+  flex:1; display:flex; align-items:center; justify-content:center; gap:0.45rem;
+  padding:0.75rem; background:#16a34a; color:#fff; border:none;
+  border-radius:10px; font-family:'Nunito',sans-serif; font-size:0.88rem; font-weight:700;
+  cursor:pointer; transition:background 0.18s;
+}
+.btn-wa:hover { background:#15803d; }
+
+.result-foot { text-align:center; margin-top:0.8rem; font-size:0.78rem; color:#9ca3af; }
+
+/* Toast */
+.toast {
+  position:fixed; bottom:1.5rem; left:50%;
+  transform:translateX(-50%) translateY(80px);
+  background:#1a1a2e; color:#fff;
+  padding:0.6rem 1.2rem; border-radius:9px;
+  font-size:0.85rem; font-weight:600;
+  transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  z-index:9999; white-space:nowrap;
+}
+.toast.show { transform:translateX(-50%) translateY(0); }
+
+@keyframes fadeUp { from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)} }
+@keyframes popIn  { from{opacity:0;transform:scale(0.82)}to{opacity:1;transform:scale(1)} }
+
+@media(max-width:400px){
+  .thumb-grid { grid-template-columns:repeat(3,1fr); }
+}
+</style>
+</head>
+<body>
+
+<h1>Image → PDF Converter</h1>
+
+<!-- Upload card -->
+<div class="card">
+  <div class="card-header">Images</div>
+  <div class="card-body">
+
+    <div class="upload-zone" id="dz">
+      <input type="file" id="fi" accept="image/*" multiple>
+      <button class="upload-btn" id="ubtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload
+      </button>
+      <div class="upload-hint">Choose images or drag &amp; drop it here.</div>
+      <div class="upload-hint-small">JPG, JPEG, PNG and WEBP. Max 20 MB.</div>
+    </div>
+
+    <div class="thumb-grid" id="tg" style="display:none"></div>
+
+    <div class="settings-row" id="sr" style="display:none">
+      <span class="opt-label">Images per A4 page</span>
+      <button class="btn-tog active" data-pp="1">1</button>
+      <button class="btn-tog" data-pp="2">2</button>
+      <button class="btn-tog" data-pp="4">4</button>
+      <button class="btn-tog" data-pp="6">6</button>
+      <span class="opt-label">Options</span>
+      <button class="btn-tog active" id="ob">Portrait</button>
+      <button class="btn-tog active" id="fb">Fit: ON</button>
+    </div>
+
+    <button class="convert-btn" id="cb" disabled>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Convert to PDF
+    </button>
+
+    <div class="progress-wrap" id="pw">
+      <div class="progress-bg"><div class="progress-fill" id="pf"></div></div>
+      <div class="progress-lbl" id="pl">Preparing…</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Result card -->
+<div class="result-card" id="rc">
+  <div class="card-header">PDF Conversion Complete</div>
+  <div class="card-body">
+    <div class="pdf-row">
+      <div class="pdf-icon">
+        <svg viewBox="0 0 52 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M6 0h28l18 18v40a6 6 0 0 1-6 6H6a6 6 0 0 1-6-6V6a6 6 0 0 1 6-6z" fill="#fee2e2"/>
+          <path d="M34 0l18 18H40a6 6 0 0 1-6-6V0z" fill="#fca5a5"/>
+          <text x="26" y="46" text-anchor="middle" font-family="Nunito,sans-serif" font-weight="800" font-size="12" fill="#dc2626">PDF</text>
+        </svg>
+        <div class="pdf-check">
+          <svg viewBox="0 0 12 12" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg>
+        </div>
+      </div>
+      <div>
+        <div class="pdf-meta-name">converted_images.pdf</div>
+        <div class="pdf-meta-sub" id="pmeta">— pages</div>
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn-save" id="sb">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Save to Device
+      </button>
+      <button class="btn-wa" id="wb">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+        Share to WhatsApp ↗
+      </button>
+    </div>
+    <div class="result-foot">PDF created successfully.</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const { jsPDF } = window.jspdf;
+
+let images = [], perPage = 1, portrait = true, fitMode = true, lastBlob = null;
+
+const dz=document.getElementById('dz'), fi=document.getElementById('fi'),
+  ubtn=document.getElementById('ubtn'), tg=document.getElementById('tg'),
+  sr=document.getElementById('sr'), cb=document.getElementById('cb'),
+  pw=document.getElementById('pw'), pf=document.getElementById('pf'),
+  pl=document.getElementById('pl'), rc=document.getElementById('rc'),
+  pmeta=document.getElementById('pmeta'), sb=document.getElementById('sb'),
+  wb=document.getElementById('wb'), ob=document.getElementById('ob'),
+  fb=document.getElementById('fb');
+
+ubtn.addEventListener('click',e=>{e.stopPropagation();fi.click();});
+dz.addEventListener('click',()=>fi.click());
+fi.addEventListener('change',()=>{addFiles([...fi.files]);fi.value='';});
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
+dz.addEventListener('drop',e=>{
+  e.preventDefault();dz.classList.remove('drag-over');
+  addFiles([...e.dataTransfer.files].filter(f=>f.type.startsWith('image/')));
+});
+
+function addFiles(files){
+  const rem=20-images.length;
+  if(rem<=0){toast('Maximum 20 images');return;}
+  files.slice(0,rem).forEach(f=>images.push({file:f,url:URL.createObjectURL(f)}));
+  render();
+}
+
+function render(){
+  const has=images.length>0;
+  tg.style.display=has?'grid':'none';
+  sr.style.display=has?'flex':'none';
+  cb.disabled=!has;
+  rc.classList.remove('show');
+  tg.innerHTML='';
+
+  images.forEach((img,i)=>{
+    const c=document.createElement('div'); c.className='thumb-cell';
+    c.innerHTML=`<img src="${img.url}"><button class="rx" data-i="${i}">✕</button>`;
+    tg.appendChild(c);
+  });
+
+  if(images.length<20){
+    const a=document.createElement('div'); a.className='add-more-cell';
+    a.innerHTML='<span class="plus">+</span><span>Add More</span>';
+    a.addEventListener('click',()=>fi.click()); tg.appendChild(a);
+  }
+
+  // Fill empty cells to keep 4-col grid neat
+  const tot=images.length+(images.length<20?1:0);
+  const rem=tot%4; if(rem!==0){
+    for(let k=0;k<4-rem;k++){const e=document.createElement('div');e.className='thumb-empty';tg.appendChild(e);}
+  }
+
+  tg.querySelectorAll('.rx').forEach(b=>{
+    b.addEventListener('click',e=>{
+      e.stopPropagation();
+      const i=parseInt(b.dataset.i);
+      URL.revokeObjectURL(images[i].url); images.splice(i,1); render();
+    });
+  });
+}
+
+document.querySelectorAll('[data-pp]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('[data-pp]').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active'); perPage=parseInt(b.dataset.pp);
+  });
+});
+
+ob.addEventListener('click',()=>{
+  portrait=!portrait; ob.textContent=portrait?'Portrait':'Landscape';
+});
+fb.addEventListener('click',()=>{
+  fitMode=!fitMode; fb.textContent='Fit: '+(fitMode?'ON':'OFF');
+  fb.classList.toggle('active',fitMode);
+});
+
+cb.addEventListener('click',async()=>{
+  if(!images.length)return;
+  cb.disabled=true; pw.classList.add('show');
+  pf.style.width='0%'; rc.classList.remove('show');
+
+  const W=portrait?210:297, H=portrait?297:210, mg=10, or=portrait?'p':'l';
+  const cols=perPage===1?1:2, rows=perPage<=2?perPage:perPage===4?2:3;
+  const cw=(W-mg*(cols+1))/cols, ch=(H-mg*(rows+1))/rows;
+
+  const pdf=new jsPDF({orientation:or,unit:'mm',format:'a4'});
+  let firstPg=true, pages=1;
+
+  for(let i=0;i<images.length;i++){
+    pf.style.width=Math.round((i/images.length)*90)+'%';
+    pl.textContent=`Processing ${i+1} of ${images.length}…`;
+    const pos=i%perPage;
+    if(pos===0&&!firstPg){pdf.addPage();pages++;}
+    firstPg=false;
+
+    const col=pos%cols, row=Math.floor(pos/cols);
+    const x=mg+col*(cw+mg), y=mg+row*(ch+mg);
+    const el=await loadImg(images[i].url);
+    const iw=el.naturalWidth, ih=el.naturalHeight;
+    const autoR=iw>ih&&cw<ch;
+
+    const cv=document.createElement('canvas');
+    if(autoR){cv.width=ih;cv.height=iw;const ctx=cv.getContext('2d');ctx.translate(ih/2,iw/2);ctx.rotate(Math.PI/2);ctx.drawImage(el,-iw/2,-ih/2);}
+    else{cv.width=iw;cv.height=ih;cv.getContext('2d').drawImage(el,0,0);}
+
+    const asp=autoR?ih/iw:iw/ih;
+    let dw,dh,dx,dy;
+    if(fitMode){
+      if(asp>cw/ch){dw=cw;dh=cw/asp;}else{dh=ch;dw=ch*asp;}
+      dx=x+(cw-dw)/2;dy=y+(ch-dh)/2;
+    }else{dw=cw;dh=ch;dx=x;dy=y;}
+
+    pdf.addImage(cv.toDataURL('image/jpeg',0.92),'JPEG',dx,dy,dw,dh);
+    await tick();
+  }
+
+  pf.style.width='100%'; pl.textContent='Generating PDF…';
+  await tick();
+
+  lastBlob=pdf.output('blob');
+  const sizeMB=(lastBlob.size/1048576).toFixed(1);
+
+  setTimeout(()=>{
+    pw.classList.remove('show'); cb.disabled=false;
+    pmeta.textContent=`${pages} Page${pages>1?'s':''}, ${sizeMB} MB`;
+    rc.classList.add('show');
+    rc.scrollIntoView({behavior:'smooth',block:'nearest'});
+  },350);
+});
+
+sb.addEventListener('click',()=>{
+  if(!lastBlob)return;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(lastBlob); a.download='converted_images.pdf'; a.click();
+  toast('✅ PDF saved!');
+});
+
+wb.addEventListener('click',()=>{
+  const msg=encodeURIComponent('Check out this PDF I created!');
+  window.open('https://wa.me/?text='+msg,'_blank');
+  toast('Opening WhatsApp…');
+});
+
+function loadImg(url){
+  return new Promise((r,j)=>{const i=new Image();i.onload=()=>r(i);i.onerror=j;i.crossOrigin='anonymous';i.src=url;});
+}
+function tick(){return new Promise(r=>setTimeout(r,0));}
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+</script>
+</body>
+</html>

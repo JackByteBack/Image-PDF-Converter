@@ -266,14 +266,13 @@ h1 {
     <div class="thumb-grid" id="tg" style="display:none"></div>
 
     <div class="settings-row" id="sr" style="display:none">
-      <span class="opt-label">Images per A4 page</span>
+      <span class="opt-label">Images per A4 Landscape page (max 6)</span>
       <button class="btn-tog active" data-pp="1">1</button>
       <button class="btn-tog" data-pp="2">2</button>
+      <button class="btn-tog" data-pp="3">3</button>
       <button class="btn-tog" data-pp="4">4</button>
+      <button class="btn-tog" data-pp="5">5</button>
       <button class="btn-tog" data-pp="6">6</button>
-      <span class="opt-label">Options</span>
-      <button class="btn-tog active" id="ob">Portrait</button>
-      <button class="btn-tog active" id="fb">Fit: ON</button>
     </div>
 
     <button class="convert-btn" id="cb" disabled>
@@ -329,7 +328,7 @@ h1 {
 <script>
 const { jsPDF } = window.jspdf;
 
-let images = [], perPage = 1, portrait = true, fitMode = true, lastBlob = null;
+let images = [], perPage = 1, lastBlob = null;
 
 const dz=document.getElementById('dz'), fi=document.getElementById('fi'),
   ubtn=document.getElementById('ubtn'), tg=document.getElementById('tg'),
@@ -337,8 +336,7 @@ const dz=document.getElementById('dz'), fi=document.getElementById('fi'),
   pw=document.getElementById('pw'), pf=document.getElementById('pf'),
   pl=document.getElementById('pl'), rc=document.getElementById('rc'),
   pmeta=document.getElementById('pmeta'), sb=document.getElementById('sb'),
-  wb=document.getElementById('wb'), ob=document.getElementById('ob'),
-  fb=document.getElementById('fb');
+  wb=document.getElementById('wb');
 
 ubtn.addEventListener('click',e=>{e.stopPropagation();fi.click();});
 dz.addEventListener('click',()=>fi.click());
@@ -377,7 +375,6 @@ function render(){
     a.addEventListener('click',()=>fi.click()); tg.appendChild(a);
   }
 
-  // Fill empty cells to keep 4-col grid neat
   const tot=images.length+(images.length<20?1:0);
   const rem=tot%4; if(rem!==0){
     for(let k=0;k<4-rem;k++){const e=document.createElement('div');e.className='thumb-empty';tg.appendChild(e);}
@@ -399,49 +396,64 @@ document.querySelectorAll('[data-pp]').forEach(b=>{
   });
 });
 
-ob.addEventListener('click',()=>{
-  portrait=!portrait; ob.textContent=portrait?'Portrait':'Landscape';
-});
-fb.addEventListener('click',()=>{
-  fitMode=!fitMode; fb.textContent='Fit: '+(fitMode?'ON':'OFF');
-  fb.classList.toggle('active',fitMode);
-});
+// Grid layouts for 1–6 images on a landscape A4 (297×210mm)
+// Returns {cols, rows} for the chosen perPage
+function getGrid(n){
+  // 1→1×1, 2→2×1, 3→3×1, 4→2×2, 5→3×2(last row partial), 6→3×2
+  const map={1:{c:1,r:1},2:{c:2,r:1},3:{c:3,r:1},4:{c:2,r:2},5:{c:3,r:2},6:{c:3,r:2}};
+  return map[n]||{c:3,r:2};
+}
 
 cb.addEventListener('click',async()=>{
   if(!images.length)return;
   cb.disabled=true; pw.classList.add('show');
   pf.style.width='0%'; rc.classList.remove('show');
 
-  const W=portrait?210:297, H=portrait?297:210, mg=10, or=portrait?'p':'l';
-  const cols=perPage===1?1:2, rows=perPage<=2?perPage:perPage===4?2:3;
-  const cw=(W-mg*(cols+1))/cols, ch=(H-mg*(rows+1))/rows;
+  // Landscape A4: W=297mm, H=210mm
+  const W=297, H=210, mg=8;
+  const {c:cols, r:rows} = getGrid(perPage);
+  const cw=(W - mg*(cols+1))/cols;
+  const ch=(H - mg*(rows+1))/rows;
 
-  const pdf=new jsPDF({orientation:or,unit:'mm',format:'a4'});
+  const pdf=new jsPDF({orientation:'l', unit:'mm', format:'a4'});
   let firstPg=true, pages=1;
 
   for(let i=0;i<images.length;i++){
     pf.style.width=Math.round((i/images.length)*90)+'%';
     pl.textContent=`Processing ${i+1} of ${images.length}…`;
+
     const pos=i%perPage;
-    if(pos===0&&!firstPg){pdf.addPage();pages++;}
+    if(pos===0&&!firstPg){pdf.addPage([297,210],'l');pages++;}
     firstPg=false;
 
     const col=pos%cols, row=Math.floor(pos/cols);
     const x=mg+col*(cw+mg), y=mg+row*(ch+mg);
+
     const el=await loadImg(images[i].url);
     const iw=el.naturalWidth, ih=el.naturalHeight;
-    const autoR=iw>ih&&cw<ch;
+
+    // Always rotate portrait photos to landscape orientation
+    const needsRotate = ih > iw;
 
     const cv=document.createElement('canvas');
-    if(autoR){cv.width=ih;cv.height=iw;const ctx=cv.getContext('2d');ctx.translate(ih/2,iw/2);ctx.rotate(Math.PI/2);ctx.drawImage(el,-iw/2,-ih/2);}
-    else{cv.width=iw;cv.height=ih;cv.getContext('2d').drawImage(el,0,0);}
+    if(needsRotate){
+      cv.width=ih; cv.height=iw;
+      const ctx=cv.getContext('2d');
+      ctx.translate(ih/2,iw/2);
+      ctx.rotate(Math.PI/2);
+      ctx.drawImage(el,-iw/2,-ih/2);
+    } else {
+      cv.width=iw; cv.height=ih;
+      cv.getContext('2d').drawImage(el,0,0);
+    }
 
-    const asp=autoR?ih/iw:iw/ih;
-    let dw,dh,dx,dy;
-    if(fitMode){
-      if(asp>cw/ch){dw=cw;dh=cw/asp;}else{dh=ch;dw=ch*asp;}
-      dx=x+(cw-dw)/2;dy=y+(ch-dh)/2;
-    }else{dw=cw;dh=ch;dx=x;dy=y;}
+    // Fit image inside cell keeping aspect ratio, centred
+    const srcW=needsRotate?ih:iw, srcH=needsRotate?iw:ih;
+    const asp=srcW/srcH;
+    const cellAsp=cw/ch;
+    let dw,dh;
+    if(asp>cellAsp){dw=cw;dh=cw/asp;}else{dh=ch;dw=ch*asp;}
+    const dx=x+(cw-dw)/2, dy=y+(ch-dh)/2;
 
     pdf.addImage(cv.toDataURL('image/jpeg',0.92),'JPEG',dx,dy,dw,dh);
     await tick();
@@ -468,10 +480,27 @@ sb.addEventListener('click',()=>{
   toast('✅ PDF saved!');
 });
 
-wb.addEventListener('click',()=>{
-  const msg=encodeURIComponent('Check out this PDF I created!');
-  window.open('https://wa.me/?text='+msg,'_blank');
-  toast('Opening WhatsApp…');
+wb.addEventListener('click', async ()=>{
+  if(!lastBlob) return;
+  const file = new File([lastBlob], 'converted_images.pdf', {type:'application/pdf'});
+
+  // Try native Web Share API (works on Android/iOS browsers)
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try {
+      await navigator.share({ files:[file], title:'My PDF', text:'Here is my PDF!' });
+      return;
+    } catch(e) {
+      // User cancelled — do nothing
+      if(e.name === 'AbortError') return;
+    }
+  }
+
+  // Fallback: download the PDF and tell the user to attach it in WhatsApp
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(lastBlob);
+  a.download = 'converted_images.pdf';
+  a.click();
+  toast('📥 PDF downloaded — attach it in WhatsApp manually');
 });
 
 function loadImg(url){
